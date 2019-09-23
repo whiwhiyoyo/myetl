@@ -125,7 +125,7 @@ def image_filename_definition(image_url):
 
 #def picsum_collector(image_url, bucket_raw='yoyo3'):
 def picsum_collector(**kwargs):
-    bucket_raw = 'yoyo4'
+    bucket_raw = 'yoyo5'
     image_url = kwargs['image_url']
     
     def get_picture_to_local(image_url):
