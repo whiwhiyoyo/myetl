@@ -1,30 +1,29 @@
 version: '3'
 services:
-  postgres:
-    image: postgres:9.6
-    environment:
-      - POSTGRES_USER=airflow
-      - POSTGRES_PASSWORD=airflow
-      - POSTGRES_DB=airflow
-    ports:
-      - "5432:5432"
+  # postgres:
+  #   image: postgres:9.6
+  #   environment:
+  #     - POSTGRES_USER=airflow
+  #     - POSTGRES_PASSWORD=airflow
+  #     - POSTGRES_DB=airflow
+  #   ports:
+  #     - "5432:5432"
 
-  webserver:
-    image: puckel/docker-airflow:1.10.1
+  airflow:
+    image: puckel/docker-airflow:1.10.4
     build:
-      context: https://github.com/puckel/docker-airflow.git#1.10.1
-      dockerfile: Dockerfile
-      args:
-        AIRFLOW_DEPS: gcp_api,s3        
-    restart: always
-    depends_on:
-      - postgres
+      context: .
+      dockerfile: Dockerfile-dev
+      # args:
+      #   AIRFLOW_DEPS: gcp_api,s3        
+    # restart: always
+    # depends_on:
+    #   - postgres
     environment:
       - LOAD_EX=n
       - EXECUTOR=Local
-      - FERNET_KEY=jsDPRErfv8Z_eVTnGfF8ywd19j4pyqE3NpdUBA_oRTo=
     volumes:
-      - ./examples/intro-example/dags:/usr/local/airflow/dags
+      - ./:/opt
       # Uncomment to include custom plugins
       # - ./plugins:/usr/local/airflow/plugins
     ports:
@@ -37,12 +36,17 @@ services:
       retries: 3
 
   minio:
-    image: minio/minio:RELEASE.2019-09-18T21-55-05Z
-    volumes:
-      - data1-1:/data1
-      - data1-2:/data2
+    image: minio/minio #:RELEASE.2019-09-18T21-55-05Z
+    # volumes:
+    #   - data1-1:/data1
+    #   - data1-2:/data2
     ports:
-      - "9001:9000"
+      - "9000:9000"
+    # networks:
+    #   quicksign:
+    #     aliases:
+    #       - minio
+
     environment:
       MINIO_ACCESS_KEY: minio
       MINIO_SECRET_KEY: minio123
@@ -52,3 +56,9 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+
+
+# networks:
+#   quicksign:
+#     ipam:
+#       driver: default
