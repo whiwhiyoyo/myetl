@@ -8,6 +8,7 @@ from datetime import timedelta
 
 import airflow
 from airflow import DAG
+from airflow.models import Variable
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.subdag_operator import SubDagOperator
@@ -190,6 +191,7 @@ def get_urls_file_raw(**context):
 
     urls_filename = context['task_instance'].xcom_pull(
         dag_id= 'subdags_test', task_ids='collect_picsum_urls')
+    print(urls_filename)
     bucket = 'urlsraw'
     urls_file = mc.get_object(bucket, urls_filename)
     local_urls_file = '/tmp/{}'.format(urls_filename)
@@ -197,9 +199,13 @@ def get_urls_file_raw(**context):
         for d in urls_file.stream(32*1024):
             f.write(d)
 
-    # UGLY rien a faire la        
+    # UGLY rien a faire la
+    final_urls_file = '/tmp/{}_final'.format(urls_filename)
+    Variable.set("final_urls_file", final_urls_file)
     subprocess.call(shlex.split(
-        '/opt/filter.sh {} {}'.format(local_urls_file, '/opt/aaa')))
+        '/opt/filter.sh {} {}'.format(local_urls_file, final_urls_file)))
+
+    
     
 
 filter_task = PythonOperator(
@@ -212,9 +218,10 @@ filter_task = PythonOperator(
 t1 >> filter_task
 
     
-def load_subdag(parent_dag_name, child_dag_name, args):
+def load_subdag(parent_dag_name,child_dag_name,args):
     #urls_filename =
     #get_urls_file_raw(urls_filename)
+   
     dag_subdag = DAG(
         dag_id='{0}.{1}'.format(parent_dag_name, child_dag_name),
         default_args=args,
@@ -229,8 +236,8 @@ def load_subdag(parent_dag_name, child_dag_name, args):
         #     dag=dag_subdag
         # )
 
-        
-        for line in tuple(open('/opt/aaa', 'r')):
+        final_urls_file = Variable.get('final_urls_file')     
+        for line in tuple(open(final_urls_file, 'r')):
             file_id = image_filename_definition(line)
             task = PythonOperator(
                 task_id='wget_' + file_id,
