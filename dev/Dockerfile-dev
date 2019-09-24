@@ -4,6 +4,7 @@ FROM python:3.7
 RUN apt-get update
 RUN apt-get install -v less vim
 RUN pip3 install minio
+RUN pip3 install pymongo
 RUN pip3 install apache-airflow
 RUN airflow initdb
 RUN mkdir /root/airflow/dags
