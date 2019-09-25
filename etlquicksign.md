@@ -79,7 +79,7 @@ resilient, maintenable, scalable
 
 | Constraint | Description                                                                                            |
 |------------|--------------------------------------------------------------------------------------------------------|
-| CON-1      | The system shall compased primarily of known tecvhnologies (docker, python, mongo, airflow, celery...) |
+| CON-1      | The system shall comparsed primarily of known technologies (docker, python, mongo, airflow, celery...) |
 | CON-2      | The system shall support local deployment and cluster deployment                                       |
 |            |                                                                                                        |
 
@@ -107,26 +107,27 @@ resilient, maintenable, scalable
 
 #### lambda architecture blocks
 1. Data Stream: Collector for all data to be processed 
-2. Batch layer: Master Data (Raw Data Storage) + Precomputing
+2. Batch layer: Master Data (Raw Data Storage) + Precomputing (Scheduler and programmatic paradigm)
 3. Serving layer: Batch views
-4. Speed layer: Real-time views (Dashboard, Visualization tool)
+4. Speed layer: Real-time views (Dashboard, Distributed search engine, Visualization tool)
 
 ### Selection of technologies
 1. Distributed Task Queue
 2. Redis or RabbitMQ
-3. Airflow : a platform to programmatically author, schedule and monitor workflows
-Scalable executor and scheduler, rich web UI for monitoring and logs
-Scheduler a single point of failure.
+3. Airflow : .
 
 
 | Design decisions | Rationale                                                                                       |
 |------------------|-------------------------------------------------------------------------------------------------|
 | the Data Collector: Kafka Connect | Data Collector is a technology family that collects, aggregates, and transfer data for later use. The destination is the Raw Data Storage. Kafka Connect can run either as a standalone process for running jobs on a single machine, or as a distributed, scalable, fault tolerant service. This allows it to scale down to development, testing, and small production deployments with a low barrier to entry and low operational overhead, and to scale up to support a large data pipeline.|
 | the Raw Data Storage: MinIO | Data in the Raw Data Storage element must be immutable. New data should not modufy existing data, but just be appended to the dataset. In such a block store, each process will be associated by a specific directory. As S3, MinIO is able to be partitionned through different nodes (scale principle **TODO**)<br>**Alternatives:**<br>1) Use HDFS (Distributed File System family). was designed to support this type of usage scenario for large data sets. A bit overkill here<br>2) NoSQL DataBase like Cassandra |
+| the Interactive Query Engine for Batch Views: MongoDB | The Batch Views element can be implemented with the Materialized View pattern. because of the GridFS storing option, large files are chunked into numbers of defined size blocks. For our purpose, pictures are not limited by the well-known 16MB size document limitation in MongoDB.<br>**Alternatives:**<br>1) Impala offers an ODBC interface for connectivity with tools, known for its competitive performance.<br>2) Apache Hive: speed of queries still slower compared to other alternatives. The choice of Hive depends on the choice of HDFS for the storage.<br>3) Spark SQL: The mainstream technologie but overkill here.<br> 4) Analytics RDBMS ....__rationale is let to the reader__ |
+| Distributed Search Engine for real-time views: ELK | The Real-time views element is responsible for full-text search over recent logs and for feeding an operational dashboard with real-time monitoring data. ElasticSearch is a technology that serves just such purposes. Kibana provides interactive dashboard for the visualization tool elemant. It is a relatively simple dashboard without role-based security( as I know). It satisfies **TODO** UC and QA.<br>**Alternatives:**<br>1) Splunk: provides indexing and visualization capabilities (better than ELK). However it is not an open source solution.<br>2) analytic RDBMS: Somme DB provide full-text search capabilities (e.g. PostgreSQL with GiST index). however they are less desirable from extensibility and maintenance.<br>3) Distributed File System and Interactive Query Engine: this approach works well for batch historical data; however, the latency of storing and processing will be too high for real-time data.|
+| the Data Processing Framework for the precomputing element: Airflow: a platform to programmatically author, schedule and monitor workflows. Scalable executors, rich web UI for monitoring and logs. The scheduler a single point of failure, but seems stateless; it can restart tasks after reboot (can be enough with an orchestrator). The main reason id to write python scripts easy to test and maintain.<br>**Alternatives:**<br>1) Oozi + Hadoop: the old overkill manner. Require substantial knowledge of low-level primitives (e.g. for writing MapReduce tasks)<br>2) Hive or Spark: provide a SQL-like language, could leverage the skills of data warehousing designers when writing data transformation scripts. Depends of the choice of HDFS (instead of minIO).  
 
 
 
-### patterns
+### patterns and anti-patterns used
 1. no pipelining (anti-pattern)
 no pipelining between tasks. Airflow is designed to run on multiple workers. each task must read from and write to systems accessible to all workers (DBs, remote FS, APIs).
 airflow workflow are not able to handle big data processing pipelines 
@@ -135,6 +136,8 @@ Spark jobs may be launched (in client mode to capture logs, Spark 2.4.0), or use
 Data should be immutable for transformations to be reproductible.
 3. batch processing
 no strem processing. triggers from eventto simulate real time. could be difficult to simulate windowing.
+4. Materialized View pattern.
+Data are stored in a form that is ready for querying. a view is updated after each batch process. Datas inside a view are not immutable. 
 
 ## ETL Interfaces
 
@@ -151,7 +154,7 @@ chargement, agrégation et intégration de programmes custom en python
 Lors de la création d’une action, il est impératif de préciser les caractéristiques de l’action : 
 -	Source : choisir la source de données
 -	Destination : objet dans lequel seront insérées les données
--	Mapping : au centre de l’écran se trouve un écran de correspondance entre les attributs de la source de donnée, et la destination pouvant être une table en prim ou en mart.
+-	Mapping : écran de correspondance entre les attributs de la source de donnée, et la destination pouvant être une table en prim ou en mart.
 
 ### Workflows
 structuration d'enchainement d'actions et possibilité de le lancer manuellement
@@ -274,7 +277,7 @@ Airflow Workers get tasks from Redis/Rabbit
 * no Queues or additional application infrastructure to manage
 * Scheduler subscribes to Kubernetes event stream
 * need a remote logging backend plugin (S3, Elasticsearch). 
-airflow aebserver requests object when log viewer is opened. Log files uploaded after each task before pod terminates
+airflow webserver requests object when log viewer is opened. Log files uploaded after each task before pod terminates
 Elasticsearch is seed by fluentd pod. airflow webserver requests to ES Client Nodes. Kibana for deeper log analysis
 2. Number of worker: K8S Horizontal Pod Autoscaller
 3. worker size: K8S resource requests/limits
@@ -282,7 +285,7 @@ Elasticsearch is seed by fluentd pod. airflow webserver requests to ES Client No
 #### HA
 1. One POD with UI One Pod with scheduler
 2. executor config in airflow.cfg
-3. FaultTlerance: resourceVersion to re create state
+3. Fault Tolerance: resourceVersion to re create state
 4. DAG propagation
 5. Airflow scheduler is a single point of failure
 use an external database for task states. But self-healing is not garanteed after a pod reboot.
