@@ -1,7 +1,7 @@
 # Demande Arnaud jeansen ##########
 ## Contexte
-### Faire un ETL capable d'ingérer de la donnée streamée sans avoir de composantes bloquantes. 
-###  Data d'entrée : queue d'urls (chaque url avec le format https://picsum.photos/[width]/[height]). Ce fichier contient des erreurs, et des doublons.
+#### Faire un ETL capable d'ingérer de la donnée streamée sans avoir de composantes bloquantes. 
+####  Data d'entrée : queue d'urls (chaque url avec le format https://picsum.photos/[width]/[height]). Ce fichier contient des erreurs, et des doublons.
 ## Spec
 ### Fonctionnelles en fin d'ETL
 #### Data store contenant :
@@ -126,10 +126,9 @@ Scheduler a single point of failure.
 | Design decisions | Rationale                                                                                       |
 |------------------|-------------------------------------------------------------------------------------------------|
 | the Data Collector: Kafka Connect | Data Collector is a technology family that collects, aggregates, and transfer data for later use. The destination is the Raw Data Storage. Kafka Connect can run either as a standalone process for running jobs on a single machine, or as a distributed, scalable, fault tolerant service. This allows it to scale down to development, testing, and small production deployments with a low barrier to entry and low operational overhead, and to scale up to support a large data pipeline.|
-| the Raw Data Storage: MinIO | Data in the Raw Data Storage element must be immutable. New data should not modufy existing data, but just be appended to the dataset. In such a block store, each process will be associated by a specific directory. As S3, MinIO is able to be partitionned through different nodes (scale principle **TODO**)|
-| | **alternative:** |
-| | * Use HDFS (Distributed File System family). was designed to support this type of usage scenario for large data sets. A bit overkill here|
-| | * NoSQL DataBase like Cassandra |
+| the Raw Data Storage: MinIO | Data in the Raw Data Storage element must be immutable. New data should not modufy existing data, but just be appended to the dataset. In such a block store, each process will be associated by a specific directory. As S3, MinIO is able to be partitionned through different nodes (scale principle **TODO**)
+* Use HDFS (Distributed File System family). was designed to support this type of usage scenario for large data sets. A bit overkill here|
+* NoSQL DataBase like Cassandra |
 
 
 
