@@ -1,7 +1,7 @@
 # Demande Arnaud jeansen ##########
 ## Contexte
-#### Faire un ETL capable d'ingérer de la donnée streamée sans avoir de composantes bloquantes. 
-####  Data d'entrée : queue d'urls (chaque url avec le format https://picsum.photos/[width]/[height]). Ce fichier contient des erreurs, et des doublons.
+* Faire un ETL capable d'ingérer de la donnée streamée sans avoir de composantes bloquantes. 
+* Data d'entrée : queue d'urls (chaque url avec le format https://picsum.photos/[width]/[height]). Ce fichier contient des erreurs, et des doublons.
 ## Spec
 ### Fonctionnelles en fin d'ETL
 #### Data store contenant :
@@ -126,8 +126,7 @@ Scheduler a single point of failure.
 | Design decisions | Rationale                                                                                       |
 |------------------|-------------------------------------------------------------------------------------------------|
 | the Data Collector: Kafka Connect | Data Collector is a technology family that collects, aggregates, and transfer data for later use. The destination is the Raw Data Storage. Kafka Connect can run either as a standalone process for running jobs on a single machine, or as a distributed, scalable, fault tolerant service. This allows it to scale down to development, testing, and small production deployments with a low barrier to entry and low operational overhead, and to scale up to support a large data pipeline.|
-| the Raw Data Storage: MinIO | Data in the Raw Data Storage element must be immutable. New data should not modufy existing data, but just be appended to the dataset. In such a block store, each process will be associated by a specific directory. As S3, MinIO is able to be partitionned through different nodes (scale principle **TODO**)
-* Use HDFS (Distributed File System family). was designed to support this type of usage scenario for large data sets. A bit overkill here|
+| the Raw Data Storage: MinIO | Data in the Raw Data Storage element must be immutable. New data should not modufy existing data, but just be appended to the dataset. In such a block store, each process will be associated by a specific directory. As S3, MinIO is able to be partitionned through different nodes (scale principle **TODO**)<br>* Use HDFS (Distributed File System family). was designed to support this type of usage scenario for large data sets. A bit overkill here<br>
 * NoSQL DataBase like Cassandra |
 
 
@@ -250,11 +249,11 @@ airflow run ${dag_id} ${task_id} ${execution_date}
 #### Updates DAGs
 1. helm charts
 helm upgrade airflow-pod charts/airflow --set tag=v0.0.2
-1.1. helm upgrade updates the Deployments state in K8S
-1.2. K8s gracefully terminates the webserver and scheduler and reboots pods with updated image tag
-1.3. task pods continue running to completion
-1.4. negligible amount of downtime
-1.5. can be automated via CI/CD tooling
+* helm upgrade updates the Deployments state in K8S
+* K8s gracefully terminates the webserver and scheduler and reboots pods with updated image tag
+* task pods continue running to completion
+* negligible amount of downtime
+* can be automated via CI/CD tooling
 
 
 
@@ -275,11 +274,11 @@ helm upgrade airflow-pod charts/airflow --set tag=v0.0.2
 Airflow scheduler publish tasks on Redis/Rabbit 
 Airflow Workers get tasks from Redis/Rabbit
 1. Kubernetes Executor
-1.1. scale to zero
-1.2. a new pod for each tasks
-1.2. no QUeues or additional application infrastructure to manage
-1.3. Scheduler subscribes to Kubernetes event stream
-1.4 need a remote logging backend plugin (S3, Elasticsearch). 
+* scale to zero
+* a new pod for each tasks
+* no QUeues or additional application infrastructure to manage
+* Scheduler subscribes to Kubernetes event stream
+* need a remote logging backend plugin (S3, Elasticsearch). 
 airflow aebserver requests object when log viewer is opened. Log files uploaded after each task before pod terminates
 Elasticsearch is seed by fluentd pod. airflow webserver requests to ES Client Nodes. Kibana for deeper log analysis
 2. Number of worker: K8S Horizontal Pod Autoscaller
