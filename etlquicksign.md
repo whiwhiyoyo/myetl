@@ -49,19 +49,23 @@ The desired solution is an ETL with no bloquant, able to capture stream datas. T
 alerting, login information and many more are future requirements.
 
 ### Scenarios
-[retention_in_weeks]: 2
 
 | Scenario | Quality Attribute | Description                                                                                                                                      | Associated UC |
 |----------|-------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|--------------:|
-| SC-1     | Performance       | The system shall provide real-time search queries for emergency troubelshooting with < 10 sec query execution time, for the last [n][retention_in_weeks] weeks of data |          UC-2 |
-| SC-2     | Scalability       | The system shall store raw data for the last [n][retention_in_weeks] weeks available for emergency troubelshooting                                                     |          UC-2 |
-| SC-3     | Scalability       | The system shall store raw data for the last 60 days (~1TB/day, ~60TB in total)                                                                  |          UC-4 |
+| SC-1     | Performance       | The system shall provide real-time search queries for emergency troubelshooting with < [s][search_latency] sec query execution time, for the last [w][retention_in_weeks] weeks of data |          UC-2 |
+| SC-2     | Scalability       | The system shall store raw data for the last [w][retention_in_weeks] weeks available for emergency troubelshooting                                                     |          UC-2 |
+| SC-3     | Scalability       | The system shall store raw data for the last [d][retrention_in_days] days (~[vd][vol_per_day]TB/day, ~[vt][col_total]TB in total)                                                                  |          UC-4 |
 | SC-4     | Extensibility     | The system shall support adding new data sources by just updating a configuration, with no interruption of ongoing data collection               |        UC-1,2 |
 | SC-5     | Availability      | The system shall continue operating with no downtime if any single node or component fails.                                                      |       All UCs |
 | SC-6     | Deployability     | The system deployment procedure shall be fully automated and support a number of environments: dev, test, prod                                   |       All UCs |
 | SC-7     | Reproducibility   | The system procedures should be reproductible during the retention time                                                                          |    UC-5, UC-6 |
 |          |                   |                                                                                                                                                  |               |
 
+[search_latency]: 10
+[retention_in_weeks]: 2
+[retention_in_days]: 60
+[vol_per_day]: 1
+[vol_total]: 60
 
 ### Contraintes
 resilient, maintenable, scalable
@@ -82,7 +86,6 @@ TODO
 ### architecture de reference
 ### Selections des technologies
 1. Distributed Task Queue
-
 2. Redis or RabbitMQ
 3. Airflow : a platform to programmatically author, schedule and monitor workflows
 Scalable executor and scheduler, rich web UI for monitoring and logs
