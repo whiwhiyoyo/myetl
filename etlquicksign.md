@@ -141,12 +141,15 @@ no strem processing. triggers from eventto simulate real time. could be difficul
 4. Materialized View pattern.
 Data are stored in a form that is ready for querying. a view is updated after each batch process. Datas inside a view are not immutable.
 5. Change Data Capture
+6. no stream processing
 
 ## ETL Interfaces
 
 ### Concepts 
 This part is to provide an interface independent of the technical solution and guarantee functional flexibility.
+Functional concepts need to be find separately from technical concepts proposed by frameworks and tools. UI interface presents functional ressources, a transformation engine composes with these ressources to generate running scripts for the chosing technical tools.
 
+### Ressources
 
 | Ressource | Description                                                      | technical derivation                                    |
 |-----------|------------------------------------------------------------------|---------------------------------------------------------|
@@ -155,17 +158,8 @@ This part is to provide an interface independent of the technical solution and g
 | Plan | Describe how workflows are handled. start a workflow on a schedule or trigger it by an event. Workflow planning automates data retrieval and defined processes. |a plan describe the __start_date__, also __trigger_rule__, __the retry_delay__ fields in the args of dags. |
 
 
-### Plans
-automatiser le chargement des données, permettre du real-time 
-
-Une planification des workflows permet d’automatiser la récupération des données et les traitements définis. À savoir :
-
-lancement manuel, recurences, hooks (airflow provide ftp hooks)
-## technical solution
-No Celery: Queue or Cluster Redis to manage and bottelneck
-
 ## Building Blocks
-
+**TODO**
 ### dsq
 
 ### Workflow Monitor
@@ -192,6 +186,7 @@ derived datas, Schema en etoile
 
 
 ## Implementations
+**TODO**
 
 ### Action Load
 Recuperation & Sauvegarde du fichier urls
@@ -217,11 +212,15 @@ logs in real-time layer
 ## Deployment
 
 ### continuous delivery
-
+3 environnements are disposals for the CD
+1. dev envs: back- end, front end, dev ops  
+2. int env
+3. prod and pre-prod env:
 ###  Local deploiment(Dev env)
 
+
 #### docker-compose
-1. airflow docker (initdb, scheduler, webserver, )
+1. airflow docker (initdb, scheduler, webserver)
 2. minio docker
 3. mongodb docker
 
