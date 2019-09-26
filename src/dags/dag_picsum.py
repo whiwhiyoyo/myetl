@@ -300,6 +300,7 @@ def picsum_collector(**kwargs):
 
         # insert the meta data
         collection.insert_one(meta)
+        #collection.replace_one(filter, replacement, upsert=False, bypass_document_validation=False, collation=None, session=None)
 
     
     def put_picture_to_raw_storage(local_image_filename):
