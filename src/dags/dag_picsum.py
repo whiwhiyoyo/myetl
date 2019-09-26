@@ -198,6 +198,224 @@ def image_filename_definition(image_url):
     )
 
 #def picsum_collector(image_url, bucket_raw='yoyo3'):
+def complete_picsum_collector(**kwargs):
+    bucket_raw = 'picsumraw'
+    print("my kwargs")
+    print(kwargs)
+    prefix = kwargs['task_instance'].xcom_pull(
+        dag_id= 'dag_picsum', task_ids='filter_task')
+    image_url = kwargs['image_url']
+    directory = '{}/{}'.format(prefix, kwargs['directory'])
+    destination = ''
+    print("yoyoyoyo")
+    print(image_url)
+    print(directory)
+    file_id = kwargs['file_id']
+    
+
+    
+
+    def action_wget(image_url):
+        
+        def get_picture_to_local(image_url):
+            import requests
+
+            tmp_images_dir = '/tmp/{}_images'.format(prefix)
+            if not os.path.isdir(tmp_images_dir):
+                os.mkdir(tmp_images_dir)
+            local_image_filename = '{}/{}'.format(
+                tmp_images_dir,
+                image_filename_definition(image_url)
+            )
+            r = requests.get(image_url)
+            with open(local_image_filename, 'w') as f:
+                f.write(r.text)
+    
+            print(local_image_filename)
+            return local_image_filename
+
+        
+        def put_picture_to_raw_storage(local_image_filename):
+            # Import MinIO library.
+            from minio import Minio
+            from minio.error import (ResponseError, BucketAlreadyOwnedByYou,
+                         BucketAlreadyExists)
+
+            # Initialize minioClient with an endpoint and access/secret keys.
+            mc = Minio('minio:9000',
+                    access_key='minio',
+                    secret_key='minio123',
+                    secure=False)
+
+            for bucket in mc.list_buckets():
+                print(bucket)
+
+            # Make a bucket with the make_bucket API call.
+            try:
+                mc.make_bucket(bucket_raw, location="us-east-1")
+            except BucketAlreadyOwnedByYou as err:
+                pass
+            except BucketAlreadyExists as err:
+                pass
+            except ResponseError as err:
+                raise
+
+            destination = '{}/{}'.format(directory, local_image_filename.split('/')[-1])
+            try:
+                mc.fput_object(bucket_raw,
+                                        destination,
+                                        local_image_filename)
+            except ResponseError as err:
+                print(err)
+            #kwargs['ti'].xcom_push(key='destination', value=destination)
+            # return destination
+            image_file = mc.get_object(bucket_raw, destination)
+            return image_file
+        return put_picture_to_raw_storage(get_picture_to_local(image_url))
+
+    
+    def action_encoding64(image_file):
+        """
+        input [string]: path of file
+        output [string]: the file encode in base64
+        """
+        import base64
+        return  base64.b64encode(image_file.read())
+        
+
+    def action_store_mongodb(encoded_string):
+        """
+        input [string]: 
+        output []: None
+        TODO: exception management
+        """       
+        from pymongo import MongoClient
+        import gridfs
+        
+        client = MongoClient('mongodb', 27017)
+        db = client['picsum']
+        collection = db['grayCollection']
+
+        fs = gridfs.GridFS(db)
+        imageID= fs.put(encoded_string)
+
+        # create our image meta data
+        meta = {
+            'imageID': imageID,
+            'name': file_id
+        }
+
+        # insert the meta data
+        collection.insert_one(meta)
+
+    image_file  = action_wget(image_url)
+    action_store_mongodb(action_encoding64(image_file))
+    
+
+def get_urls_file_raw(**context): 
+    import subprocess
+    import shlex
+    # Import MinIO library.
+    from minio import Minio
+    from minio.error import (ResponseError, BucketAlreadyOwnedByYou,
+                         BucketAlreadyExists)
+
+    # Initialize minioClient with an endpoint and access/secret keys.
+    mc = Minio('minio:9000',
+                    access_key='minio',
+                    secret_key='minio123',
+                    secure=False)
+
+
+    urls_filename = context['task_instance'].xcom_pull(
+        dag_id= 'dag_picsum', task_ids='collect_picsum_urls')
+    print(urls_filename)
+    bucket = 'urlsraw'
+    urls_file = mc.get_object(bucket, urls_filename)
+    local_urls_file = '/tmp/{}'.format(urls_filename)
+    with open(local_urls_file, 'wb') as f:
+        for d in urls_file.stream(32*1024):
+            f.write(d)
+
+    # UGLY rien a faire la
+    final_urls_file = '/tmp/{}_final'.format(urls_filename)
+    # DANGER: Variable est global a l ensemble des dag
+    Variable.set("final_urls_file", final_urls_file)
+    subprocess.call(shlex.split(
+        '/opt/filter.sh {} {}'.format(local_urls_file, final_urls_file)))
+
+    return datetime.timestamp(datetime.now())
+    
+
+filter_task = PythonOperator(
+    task_id='filter_task',
+    python_callable=get_urls_file_raw,
+    provide_context=True,
+    dag=dag
+)
+
+t1 >> filter_task
+
+
+
+
+def load_subdag(parent_dag_name, child_dag_name, args):
+    
+    dag_subdag = DAG(
+        dag_id='{0}.{1}'.format(parent_dag_name, child_dag_name),
+        default_args=args,
+        schedule_interval="@daily",
+    )
+    print("glouglou")
+    #print(prefix)
+    with dag_subdag:
+
+        final_urls_file = Variable.get('final_urls_file')     
+        for line in tuple(open(final_urls_file, 'r')):
+            file_id = image_filename_definition(line)
+            directory = (final_urls_file.split('/')[-1]
+                                        .replace('_urls_final',''))
+            wget_task = PythonOperator(
+                task_id='wget_' + file_id,
+                python_callable=complete_picsum_collector,
+                op_kwargs={'image_url': line,
+                           'directory': directory,
+                           'file_id': file_id},
+                provide_context=True,
+                dag=dag_subdag
+            )
+
+            # encoding_task = PythonOperator(
+            #     task_id='encode_' + file_id,
+            #     python_callable=encoding64,
+            #     op_kwargs={'file_id': file_id},
+            #     provide_context=True,
+            #     dag=dag_subdag
+            # )       
+
+            # wget_task >> encoding_task
+
+    return dag_subdag
+
+
+load_tasks = SubDagOperator(
+    task_id='load_tasks',
+    subdag=load_subdag('dag_picsum', 'load_tasks',
+                        default_args),
+    default_args=default_args,
+    dag=dag
+)
+
+filter_task >> load_tasks
+
+# datetime.timestamp(datetime.now())
+
+
+
+
+
+
+#def picsum_collector(image_url, bucket_raw='yoyo3'):
 def picsum_collector(**kwargs):
     bucket_raw = 'picsumraw'
     print("my kwargs")
@@ -230,8 +448,8 @@ def picsum_collector(**kwargs):
         print(local_image_filename)
         return local_image_filename
 
-
-
+    
+        
     def encoding64(destination):
         """
         get a single image from Raw Data Store, encode it, 
@@ -346,103 +564,3 @@ def picsum_collector(**kwargs):
     destination = put_picture_to_raw_storage(get_picture_to_local(image_url))
     encoding64(destination)
     return destination
-
-def get_urls_file_raw(**context): 
-    import subprocess
-    import shlex
-    # Import MinIO library.
-    from minio import Minio
-    from minio.error import (ResponseError, BucketAlreadyOwnedByYou,
-                         BucketAlreadyExists)
-
-    # Initialize minioClient with an endpoint and access/secret keys.
-    mc = Minio('minio:9000',
-                    access_key='minio',
-                    secret_key='minio123',
-                    secure=False)
-
-
-    urls_filename = context['task_instance'].xcom_pull(
-        dag_id= 'dag_picsum', task_ids='collect_picsum_urls')
-    print(urls_filename)
-    bucket = 'urlsraw'
-    urls_file = mc.get_object(bucket, urls_filename)
-    local_urls_file = '/tmp/{}'.format(urls_filename)
-    with open(local_urls_file, 'wb') as f:
-        for d in urls_file.stream(32*1024):
-            f.write(d)
-
-    # UGLY rien a faire la
-    final_urls_file = '/tmp/{}_final'.format(urls_filename)
-    # DANGER: Variable est global a l ensemble des dag
-    Variable.set("final_urls_file", final_urls_file)
-    subprocess.call(shlex.split(
-        '/opt/filter.sh {} {}'.format(local_urls_file, final_urls_file)))
-
-    return datetime.timestamp(datetime.now())
-    
-
-filter_task = PythonOperator(
-    task_id='filter_task',
-    python_callable=get_urls_file_raw,
-    provide_context=True,
-    dag=dag
-)
-
-t1 >> filter_task
-
-
-
-
-def load_subdag(parent_dag_name, child_dag_name, args):
-    
-    dag_subdag = DAG(
-        dag_id='{0}.{1}'.format(parent_dag_name, child_dag_name),
-        default_args=args,
-        schedule_interval="@daily",
-    )
-    print("glouglou")
-    #print(prefix)
-    with dag_subdag:
-
-        final_urls_file = Variable.get('final_urls_file')     
-        for line in tuple(open(final_urls_file, 'r')):
-            file_id = image_filename_definition(line)
-            directory = (final_urls_file.split('/')[-1]
-                                        .replace('_urls_final',''))
-            wget_task = PythonOperator(
-                task_id='wget_' + file_id,
-                python_callable=picsum_collector,
-                op_kwargs={'image_url': line,
-                           'directory': directory,
-                           'file_id': file_id},
-                provide_context=True,
-                dag=dag_subdag
-            )
-
-            # encoding_task = PythonOperator(
-            #     task_id='encode_' + file_id,
-            #     python_callable=encoding64,
-            #     op_kwargs={'file_id': file_id},
-            #     provide_context=True,
-            #     dag=dag_subdag
-            # )       
-
-            # wget_task >> encoding_task
-
-    return dag_subdag
-
-
-load_tasks = SubDagOperator(
-    task_id='load_tasks',
-    subdag=load_subdag('dag_picsum', 'load_tasks',
-                        default_args),
-    default_args=default_args,
-    dag=dag
-)
-
-filter_task >> load_tasks
-
-# datetime.timestamp(datetime.now())
-
-
