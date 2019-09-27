@@ -144,6 +144,7 @@ no strem processing. triggers from eventto simulate real time. could be difficul
 4. Materialized View pattern.
 Data are stored in a form that is ready for querying. a view is updated after each batch process. Datas inside a view are not immutable.
 5. Change Data Capture
+6. orchestrator instead of standalone cluster: Kubernetes esecutor instead of Celery executors. CeleryExecutor is one of the ways you can scale out the number of workers.
 
 ## ETL Interfaces
 
