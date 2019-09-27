@@ -1,7 +1,3 @@
-from airflow import DAG
-from airflow.models import Variable
-
-from airflow.operators.python_operator import PythonOperator
 
 
 
@@ -11,9 +7,8 @@ def image_filename_definition(image_url):
             .replace(".photos","")
     )
 
-def coucou():
-    print("coucou")
-#def picsum_collector(image_url, bucket_raw='yoyo3'):
+
+
 def picsum_collector(**kwargs):
     from etlqs.actions import action_wget, action_store_mongodb, action_encoding64
 
@@ -22,16 +17,7 @@ def picsum_collector(**kwargs):
     file_id = image_filename_definition(image_url)
     prefix = kwargs['task_instance'].xcom_pull(
         dag_id= 'dag_picsum', task_ids='filter_task')
-    directory = kwargs['directory']
-   
-    # destination = ''
-    # print("yoyoyoyo")
-    # print(image_url)
-    # print(directory)
-    # file_id = kwargs['file_id']
-    
-
-    
+    directory = kwargs['directory']  
 
     image_file  = action_wget(image_url, file_id, prefix, directory)
     action_store_mongodb(action_encoding64(image_file), file_id)
@@ -39,14 +25,17 @@ def picsum_collector(**kwargs):
 
 
 def load_subdag(parent_dag_name, child_dag_name, args):
+    from airflow import DAG
+    from airflow.models import Variable
+
+    from airflow.operators.python_operator import PythonOperator
     
     dag_subdag = DAG(
         dag_id='{0}.{1}'.format(parent_dag_name, child_dag_name),
         default_args=args,
         schedule_interval="@daily",
     )
-    print("glouglou")
-    #print(prefix)
+    
     with dag_subdag:
 
         final_urls_file = Variable.get('final_urls_file')     

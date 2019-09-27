@@ -121,6 +121,83 @@ t1 = PythonOperator(
 
 
 
+
+    
+    
+
+###### task: get images from picsum  ###########
+
+    
+
+def get_urls_file_raw(**context): 
+    import subprocess
+    import shlex
+    # Import MinIO library.
+    from minio import Minio
+    from minio.error import (ResponseError, BucketAlreadyOwnedByYou,
+                         BucketAlreadyExists)
+
+    # Initialize minioClient with an endpoint and access/secret keys.
+    mc = Minio('minio:9000',
+                    access_key='minio',
+                    secret_key='minio123',
+                    secure=False)
+
+
+    urls_filename = context['task_instance'].xcom_pull(
+        dag_id= 'dag_picsum', task_ids='collect_picsum_urls')
+    print(urls_filename)
+    bucket = 'urlsraw'
+    urls_file = mc.get_object(bucket, urls_filename)
+    local_urls_file = '/tmp/{}'.format(urls_filename)
+    with open(local_urls_file, 'wb') as f:
+        for d in urls_file.stream(32*1024):
+            f.write(d)
+
+    # UGLY rien a faire la
+    final_urls_file = '/tmp/{}_final'.format(urls_filename)
+    # DANGER: Variable est global a l ensemble des dag
+    Variable.set("final_urls_file", final_urls_file)
+    subprocess.call(shlex.split(
+        '/opt/filter.sh {} {}'.format(local_urls_file, final_urls_file)))
+
+    return datetime.timestamp(datetime.now())
+    
+
+filter_task = PythonOperator(
+    task_id='filter_task',
+    python_callable=get_urls_file_raw,
+    provide_context=True,
+    dag=dag
+)
+
+t1 >> filter_task
+
+
+
+load_tasks = SubDagOperator(
+    task_id='load_tasks',
+    subdag=load_subdag('dag_picsum', 'load_tasks',
+                        default_args),
+    default_args=default_args,
+    dag=dag
+)
+
+filter_task >> load_tasks
+
+# datetime.timestamp(datetime.now())
+
+
+
+
+
+
+
+
+######### garbage ###################
+
+
+
 ##### task: encode and put image on MongoDB ##############
 def encoding64(**kwargs):
     """
@@ -193,72 +270,3 @@ def encoding64(**kwargs):
 
     # insert the meta data
     collection.insert_one(meta)
-
-    
-    
-
-###### task: get images from picsum  ###########
-
-    
-
-def get_urls_file_raw(**context): 
-    import subprocess
-    import shlex
-    # Import MinIO library.
-    from minio import Minio
-    from minio.error import (ResponseError, BucketAlreadyOwnedByYou,
-                         BucketAlreadyExists)
-
-    # Initialize minioClient with an endpoint and access/secret keys.
-    mc = Minio('minio:9000',
-                    access_key='minio',
-                    secret_key='minio123',
-                    secure=False)
-
-
-    urls_filename = context['task_instance'].xcom_pull(
-        dag_id= 'dag_picsum', task_ids='collect_picsum_urls')
-    print(urls_filename)
-    bucket = 'urlsraw'
-    urls_file = mc.get_object(bucket, urls_filename)
-    local_urls_file = '/tmp/{}'.format(urls_filename)
-    with open(local_urls_file, 'wb') as f:
-        for d in urls_file.stream(32*1024):
-            f.write(d)
-
-    # UGLY rien a faire la
-    final_urls_file = '/tmp/{}_final'.format(urls_filename)
-    # DANGER: Variable est global a l ensemble des dag
-    Variable.set("final_urls_file", final_urls_file)
-    subprocess.call(shlex.split(
-        '/opt/filter.sh {} {}'.format(local_urls_file, final_urls_file)))
-
-    return datetime.timestamp(datetime.now())
-    
-
-filter_task = PythonOperator(
-    task_id='filter_task',
-    python_callable=get_urls_file_raw,
-    provide_context=True,
-    dag=dag
-)
-
-t1 >> filter_task
-
-
-
-load_tasks = SubDagOperator(
-    task_id='load_tasks',
-    subdag=load_subdag('dag_picsum', 'load_tasks',
-                        default_args),
-    default_args=default_args,
-    dag=dag
-)
-
-filter_task >> load_tasks
-
-# datetime.timestamp(datetime.now())
-
-
-
-

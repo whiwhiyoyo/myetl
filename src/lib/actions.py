@@ -1,10 +1,10 @@
 
 
+BUCKET_RAW='picsumraw'
 
 
 
-
-def action_wget(image_url, file_id, prefix, directory, bucket_raw='picsumraw'):
+def action_wget(image_url, file_id, prefix, directory, bucket_raw=BUCKET_RAW):
    
     def get_picture_to_local(image_url):
         import requests
@@ -39,6 +39,7 @@ def action_wget(image_url, file_id, prefix, directory, bucket_raw='picsumraw'):
                 access_key='minio',
                 secret_key='minio123',
                 secure=False)
+        
 
         for bucket in mc.list_buckets():
             print(bucket)
@@ -101,3 +102,15 @@ def action_store_mongodb(encoded_string, file_id):
 
     # insert the meta data
     collection.insert_one(meta)
+
+
+def action_store_to_raw():
+    from minio import Minio
+    from minio.error import (ResponseError, BucketAlreadyOwnedByYou,
+                         BucketAlreadyExists)
+
+    # Initialize minioClient with an endpoint and access/secret keys.
+    mc = Minio('minio:9000',
+               access_key='minio',
+               secret_key='minio123',
+               secure=False)
