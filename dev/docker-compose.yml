@@ -13,6 +13,7 @@ services:
     volumes:
       - ../src/:/opt
       - ../src/dags:/root/airflow/dags
+      - ../src/lib:/usr/local/lib/python3.7/site-packages/etlqs
     ports:
       - "8080:8080"
     networks:
