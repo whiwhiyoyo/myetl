@@ -2,9 +2,10 @@
 1. docker-compose up
 2. docker exec -it -w /opt airflow /bin/bash
 3. python seed_minio.py
-4. airflow scheduler &
-5. go to airflow UI http://localhost:8080/admin/
-6. enjoy with your code editor
+4. airflow variables --set final_urls_file /opt/aaa
+5. airflow scheduler &
+6. go to airflow UI http://localhost:8080/admin/
+7. enjoy with your code editor
 
 ## Troubleshooting
 ### XCom

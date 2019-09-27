@@ -8,9 +8,8 @@ def action_wget(image_url, file_id, prefix, directory, bucket_raw='picsumraw'):
    
     def get_picture_to_local(image_url):
         import requests
-        import uuid
         import os
-        print(file_id)
+        
         tmp_images_dir = '/tmp/{}_image'.format(prefix)
         if not os.path.isdir(tmp_images_dir):
             os.mkdir(tmp_images_dir)
