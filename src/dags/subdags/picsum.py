@@ -1,28 +1,27 @@
 
 
+def picsum_collector(**kwargs):
+    from etlqs.actions.actions_picsum_pictures import (action_wget,
+                                               action_load_picture,
+                                               action_encoding64)
+
+
+    image_url = kwargs['image_url']
+    prefix = kwargs['task_instance'].xcom_pull(
+        dag_id= 'dag_picsum', task_ids='filter_task')
+    directory = kwargs['directory']  
+
+    image_file, file_id  = action_wget(image_url, prefix, directory)
+    action_load_picture(
+        action_encoding64(image_file),
+        file_id)
+
 
 def image_filename_definition(image_url):
     return (image_url.replace("https://","")
             .replace("/","")
             .replace(".photos","")
     )
-
-
-
-def picsum_collector(**kwargs):
-    from etlqs.actions import action_wget, action_store_mongodb, action_encoding64
-
-
-    image_url = kwargs['image_url']
-    file_id = image_filename_definition(image_url)
-    prefix = kwargs['task_instance'].xcom_pull(
-        dag_id= 'dag_picsum', task_ids='filter_task')
-    directory = kwargs['directory']  
-
-    image_file  = action_wget(image_url, file_id, prefix, directory)
-    action_store_mongodb(action_encoding64(image_file), file_id)
-
-
 
 def load_subdag(parent_dag_name, child_dag_name, args):
     from airflow import DAG

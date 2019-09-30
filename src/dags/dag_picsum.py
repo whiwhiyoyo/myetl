@@ -1,9 +1,4 @@
 
-"""
-### Tutorial Documentation
-Documentation that goes along with the Airflow tutorial located
-[here](https://airflow.apache.org/tutorial.html)
-"""
 from datetime import timedelta
 
 import airflow
@@ -45,77 +40,59 @@ default_args = {
 dag = DAG(
     'dag_picsum',
     default_args=default_args,
-    description='DAG du roudoudou',
+    description='Workflow picsum.photo gray',
     schedule_interval=timedelta(days=1),
 )
 
 #Variable.set("final_urls_file", "/opt/aaa")
 
 
-def image_filename_definition(image_url):
-    return (image_url.replace("https://","")
-            .replace("/","")
-            .replace(".photos","")
-    )
+# def image_filename_definition(image_url):
+#     return (image_url.replace("https://","")
+#             .replace("/","")
+#             .replace(".photos","")
+#     )
 
 # UGLY should be a trigger by a change event from the bucket
-def urls_file_collector(bucket='urls',
-                  urls_filename='picsum_urls'):
-    from minio import Minio
-    from minio.error import (ResponseError, BucketAlreadyOwnedByYou,
-                         BucketAlreadyExists)
+def action_urls_file_collector(urls_filename='picsum_urls'):
+    """
+    Get metas remotely, from the file where the list of urls is recorded
+    Get file 
+    Write it locally
+    Store it in raw storage
+    return its path in raw storage
+    """
+    from etlqs.actions.actions_urls_file import (get_metas, get_urls_file,
+                                         load_urls_file, extract_urls_file)
+ 
+    metas = get_metas(urls_filename)
+    # UGLY write the file locally is for debugging during the dev
+    local_urls_filename = '/tmp/{}'.format(
+        urls_file_definition(filename=metas['name'],
+                             last_modified=metas['last_modified'])
+    )
 
-    # Initialize minioClient with an endpoint and access/secret keys.
-    mc = Minio('minio:9000',
-               access_key='minio',
-               secret_key='minio123',
-               secure=False)
+    urls_file = extract_urls_file(urls_filename)
+    with open(local_urls_filename, 'wb') as f:
+        for d in urls_file.stream(32*1024):
+            f.write(d)
 
-    objects = mc.list_objects_v2(bucket, recursive=False)
-    for obj in objects:
-        print(obj.bucket_name,
-              obj.object_name,
-              obj.last_modified,
-              obj.etag,
-              obj.size,
-              obj.content_type)
-        if obj.object_name == urls_filename:
-            #TODO condition of the local existance of the file
-            urls_file = mc.get_object(bucket, urls_filename)
-            local_urls_filename = '/tmp/{}'.format(
-                urls_file_definition(obj.object_name, obj.last_modified))
-            with open(local_urls_filename, 'wb') as f:
-                for d in urls_file.stream(32*1024):
-                    f.write(d)
-
-            # TODO condition of th remote existqnce of the file
-            try:
-                with open(local_urls_filename, 'rb') as f:
-                    file_stat = os.stat(local_urls_filename)
-                    print(mc.put_object('urlsraw',
-                                        local_urls_filename.split('/')[-1],
-                                        f, file_stat.st_size))
-            except ResponseError as err:
-                print(err)
-            return local_urls_filename.split('/')[-1]
+    load_urls_file(local_urls_filename)
+    return local_urls_filename.split('/')[-1]
         
-    #we shouldn't be here
-    print("{} is not found in the bucket {}".format(urls_filename, bucket))
-    # TODO write a specific exception instead of returning None
-    return None
 
 
 def urls_file_definition(filename='picsum_urls',
                          last_modified=str(datetime.now())):
-    return '{}_{}'.format(datetime.timestamp(last_modified),
-                          filename)
+    return '{}_{}'.format(
+        datetime.timestamp(last_modified),
+        filename)
 
 
 t1 = PythonOperator(
     task_id='collect_picsum_urls',
-    python_callable=urls_file_collector,
-    op_kwargs={'bucket':'urls',
-               'urls_filename':'picsum_urls'},
+    python_callable=action_urls_file_collector,
+    op_kwargs={'urls_filename':'picsum_urls'},
     dag=dag
 )
 
@@ -129,44 +106,42 @@ t1 = PythonOperator(
 
     
 
-def get_urls_file_raw(**context): 
+def action_filter(**context):
+    """
+    Get urls_file from raw store 
+    Store the file to a temporary file.
+    Clean it with a filter script
+    Set a variable with the path of the cleaned file 
+    """
     import subprocess
     import shlex
-    # Import MinIO library.
-    from minio import Minio
-    from minio.error import (ResponseError, BucketAlreadyOwnedByYou,
-                         BucketAlreadyExists)
-
-    # Initialize minioClient with an endpoint and access/secret keys.
-    mc = Minio('minio:9000',
-                    access_key='minio',
-                    secret_key='minio123',
-                    secure=False)
-
+    from etlqs.actions.actions_urls_file import get_urls_file
 
     urls_filename = context['task_instance'].xcom_pull(
         dag_id= 'dag_picsum', task_ids='collect_picsum_urls')
     print(urls_filename)
-    bucket = 'urlsraw'
-    urls_file = mc.get_object(bucket, urls_filename)
+    # bucket = 'urlsraw'
+    # urls_file = mc.get_object(bucket, urls_filename)
     local_urls_file = '/tmp/{}'.format(urls_filename)
+    urls_file = get_urls_file(urls_filename)
     with open(local_urls_file, 'wb') as f:
         for d in urls_file.stream(32*1024):
             f.write(d)
 
     # UGLY rien a faire la
     final_urls_file = '/tmp/{}_final'.format(urls_filename)
-    # DANGER: Variable est global a l ensemble des dag
-    Variable.set("final_urls_file", final_urls_file)
     subprocess.call(shlex.split(
         '/opt/filter.sh {} {}'.format(local_urls_file, final_urls_file)))
+
+    # DANGER: Variable est global a l ensemble des dag
+    Variable.set("final_urls_file", final_urls_file)
 
     return datetime.timestamp(datetime.now())
     
 
 filter_task = PythonOperator(
     task_id='filter_task',
-    python_callable=get_urls_file_raw,
+    python_callable=action_filter,
     provide_context=True,
     dag=dag
 )
@@ -185,88 +160,3 @@ load_tasks = SubDagOperator(
 
 filter_task >> load_tasks
 
-# datetime.timestamp(datetime.now())
-
-
-
-
-
-
-
-
-######### garbage ###################
-
-
-
-##### task: encode and put image on MongoDB ##############
-def encoding64(**kwargs):
-    """
-    get a single image from Raw Data Store, encode it, 
-    and store it into the materialized view
-    """
-    from pymongo import MongoClient
-    import gridfs
-    import base64
-    # Import MinIO library.
-    from minio import Minio
-    from minio.error import (ResponseError, BucketAlreadyOwnedByYou,
-                         BucketAlreadyExists)
-
-    # Initialize minioClient with an endpoint and access/secret keys.
-    mc = Minio('minio:9000',
-                    access_key='minio',
-                    secret_key='minio123',
-                    secure=False)
-
-    # access our image collection
-    client = MongoClient('mongodb', 27017)
-    db = client['picsum']
-    collection = db['grayCollection']
-
-    fs = gridfs.GridFS(db)
-
-
-    bucket_raw = 'picsumraw'
-    file_id = kwargs['file_id']
-    #directory = kwargs['directory']
-    task_id='wget_'+file_id
-    print(file_id)
-    print(task_id)
-    print(kwargs)
-    yoyowhiwhi = kwargs['ti'].xcom_pull(
-        dag_id='dag_picsum.load_tasks',task_ids='wget_picsum104105')
-    print(yoyowhiwhi)
-    destination = kwargs['ti'].xcom_pull(
-        key='destination',
-        task_ids='wget_'+file_id,
-        dag_id='dag_picsum.load_tasks')
-    print(destination)
-    source = '{}/{}'.format(destination, file_id)
-    print("whiwhiwhi")
-    print(file_id)
-    print(source)
-    
-
-    
-    # image_filename = kwargs['task_instance'].xcom_pull(
-    #     task_ids=kwargs['parent_task_id'])
-    # print(image_filename)
-
-
-
-    image_file = mc.get_object(bucket_raw, source)
-    encoded_string = base64.b64encode(image_file.read())
-    # with open("images_raw/picsum154155", "rb") as image_file:
-    #     encoded_string = base64.b64encode(image_file.read())
-
-    # store the image
-    imageID= fs.put(encoded_string)
-
-    # create our image meta data
-    meta = {
-        'imageID': imageID,
-        'name': file_id
-    }
-
-    # insert the meta data
-    collection.insert_one(meta)
