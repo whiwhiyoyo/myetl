@@ -163,30 +163,33 @@ Functional concepts need to be find separately from technical concepts proposed 
 
 
 ## Building Blocks
-**TODO**
-### dsq
+
+### Workflow API
+persona: Data Manager, clients of the ETL
+component: server with public API
+1. management for actions, workflows and plans
+2. define data structures for each resources
+
+### Workflow Builder
+persona: Data Manager, clients of the ETL
+component: interface between the workflow API resources and Airflow resources (DAG and tasks)
 
 ### Workflow Monitor
-for Product owners
-airflow webserver
+persona: Product owners, SRE
+component: airflow webserver
 1. Adhoc Queries
 2. DAG's Dashboard
-
 
 ### Workflow Scheduler
 airflow scheduler
 
-
 ### Real-time Monitor
-ELK
-
-
+persona: Product owners, SRE
+component: ELK
 
 ### Analytic System
-CDC from Airflow backend
-derived datas, Schema en etoile
-
-
+CDC from Airflow backend (MariaDB)
+derived datas in column store or star schemas.
 
 
 ## Implementations
@@ -198,7 +201,7 @@ Input:
 Recuperation & Sauvegarde du fichier urls
 
 ### Action BluePrint
-shell script
+shell script (filter.sh)
 UC 1, 
 1. pros: synthetique, easy reading, performance
 2. cons: no inverted function (collect errors to past mistakes), 
