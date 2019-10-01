@@ -94,7 +94,7 @@ resilient, maintenable, scalable
 
 
 ### Security
-**TODO**
+**Future**
 1. connection with IAM
 2. network segmentation
 3. roles and rights
@@ -165,7 +165,7 @@ Functional concepts need to be find separately from technical concepts proposed 
 ## Building Blocks
 
 ### Workflow API
-persona: Data Manager, clients of the ETL
+persona: Data Manager
 component: server with public API
 1. management for actions, workflows and plans
 2. define data structures for each resources
@@ -173,6 +173,9 @@ component: server with public API
 ### Workflow Builder
 persona: Data Manager, clients of the ETL
 component: interface between the workflow API resources and Airflow resources (DAG and tasks)
+1. aggregate actions into tasks
+2. describe workflows into DAG and subDAG
+3. map plans into DAG descriptions
 
 ### Workflow Monitor
 persona: Product owners, SRE
@@ -182,6 +185,9 @@ component: airflow webserver
 
 ### Workflow Scheduler
 airflow scheduler
+
+### Data Querying
+retrieve pictures and metas from document store
 
 ### Real-time Monitor
 persona: Product owners, SRE
@@ -195,20 +201,22 @@ derived datas in column store or star schemas.
 ## Implementations
 **TODO**
 
-### Action Load
+### back end
+etlgs lib
+
+### actions
+1. Extract file where urls are recorded
 Input: 
 
 Recuperation & Sauvegarde du fichier urls
 
-### Action BluePrint
+2. Action BluePrint
 shell script (filter.sh)
 UC 1, 
-1. pros: synthetique, easy reading, performance
-2. cons: no inverted function (collect errors to past mistakes), 
+* pros: synthetique, easy reading, performance
+* cons: no inverted function (collect errors to past mistakes), 
 
-### construction du DAG
-Actions are tasks instances - represents an execution of a node in the DAG
-Plan define dag runs with a cron-like interface.  
+3. action load to raw store
 
 ### Action get & transformation
 wget
@@ -217,6 +225,12 @@ transform in gray
 store in minio
 fact in analytics
 logs in real-time layer
+
+
+
+### construction du DAG
+Actions are tasks instances - represents an execution of a node in the DAG
+Plan define dag runs with a cron-like interface.  
 
 
 ## Deployment
