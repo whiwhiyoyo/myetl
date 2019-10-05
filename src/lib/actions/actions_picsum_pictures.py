@@ -12,7 +12,7 @@ def image_filename_definition(image_url):
 def action_wget(image_url, prefix, directory, bucket_raw=BUCKET_RAW):
 
     file_id = image_filename_definition(image_url)
-
+    
     def get_picture_to_local(image_url):
         import requests
         import os
@@ -27,10 +27,12 @@ def action_wget(image_url, prefix, directory, bucket_raw=BUCKET_RAW):
             tmp_images_dir,
             file_id
         )
-        r = requests.get(image_url)
-        with open(local_image_filename, 'w') as f:
-            f.write(r.text)
 
+        r = requests.get(image_url, allow_redirects=True)
+    
+        with open(local_image_filename, 'wb') as f:
+            f.write(r.content)
+        
         print(local_image_filename)
         return local_image_filename
 
@@ -70,9 +72,10 @@ def action_wget(image_url, prefix, directory, bucket_raw=BUCKET_RAW):
         except ResponseError as err:
             print(err)
         #kwargs['ti'].xcom_push(key='destination', value=destination)
-        # return destination
+        
         image_file = mc.get_object(bucket_raw, destination)
-        return image_file
+        #return image_file
+        return local_image_filename
     
     return put_picture_to_raw_storage(get_picture_to_local(image_url)), file_id
 
@@ -83,7 +86,8 @@ def action_encoding64(image_file):
     output [string]: the file encode in base64
     """
     import base64
-    return base64.b64encode(image_file.read())
+    print(image_file)
+    return base64.b64encode(open(image_file, 'rb').read())
 
 
 def action_load_picture(encoded_string, file_id):
