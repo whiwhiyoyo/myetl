@@ -86,14 +86,14 @@ def action_encoding64(image_file):
     output [string]: the file encode in base64
     """
     import base64
-    print(image_file)
+
     return base64.b64encode(open(image_file, 'rb').read())
 
 
-def action_load_picture(encoded_string, file_id):
+def action_load_picture(encoded_string, file_id, collection='grayCollection'):
     from etlqs.ambassador import put_to_store_mongodb
 
-    put_to_store_mongodb(collection='grayCollection',
+    put_to_store_mongodb(collection,
                          encoded_string=encoded_string,
                          file_id=file_id)
     
