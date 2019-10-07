@@ -1,7 +1,7 @@
 
 
 def picsum_collector(**kwargs):
-    from etlqs.actions.actions_picsum_pictures import (action_wget,
+    from etlqs.actions.actions_picsum_pictures import (action_extract_picture,
                                                action_load_picture,
                                                action_encoding64)
 
@@ -11,7 +11,7 @@ def picsum_collector(**kwargs):
         dag_id= 'dag_picsum', task_ids='filter_task')
     directory = kwargs['directory']  
 
-    image_file, file_id  = action_wget(image_url, prefix, directory)
+    image_file, file_id  = action_extract_picture(image_url, prefix, directory)
     action_load_picture(
         action_encoding64(image_file),
         file_id)

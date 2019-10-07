@@ -56,14 +56,23 @@ def put_to_raw_store(bucket, file_path):
     from minio.error import (ResponseError, BucketAlreadyOwnedByYou,
                          BucketAlreadyExists)
 
-    bucket = 'urlsraw'
+    #bucket = 'urlsraw'
     destination_path = file_path.split('/')[-1]
     # Initialize minioClient with an endpoint and access/secret keys.
     mc = Minio('minio:9000',
                access_key='minio',
                secret_key='minio123',
                secure=False)
-    
+        
+    try:
+        mc.make_bucket(bucket, location="us-east-1")
+    except BucketAlreadyOwnedByYou as err:
+        pass
+    except BucketAlreadyExists as err:
+        pass
+    except ResponseError as err:
+        raise
+        
     try:
         mc.fput_object(bucket,
                        destination_path,

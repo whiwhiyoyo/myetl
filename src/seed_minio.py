@@ -19,7 +19,7 @@ def create_urls_buckets(buckets=('urls','urlsraw')):
     except ResponseError as err:
         raise
 
-def put_picsum_urls_file(bucket='urls', path='/opt/picsum'):
+def put_picsum_urls_file(bucket='urls', path='/opt/src/picsum'):
     try:
         mc.fput_object(bucket, 'picsum_urls', path)
     except ResponseError as err:

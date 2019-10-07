@@ -9,75 +9,60 @@ def image_filename_definition(image_url):
             .replace(".photos","")
     )
 
-def action_wget(image_url, prefix, directory, bucket_raw=BUCKET_RAW):
+def action_extract_picture(image_url, prefix,
+                           directory, bucket_raw=BUCKET_RAW):
 
     file_id = image_filename_definition(image_url)
+    tmp_images_dir = '/tmp/{}_image'.format(prefix)
+    local_image_filename = '{}/{}'.format(
+        tmp_images_dir,
+        file_id
+    )
     
-    def get_picture_to_local(image_url):
+    def wget(image_url):
         import requests
-        import os
-        
-        tmp_images_dir = '/tmp/{}_image'.format(prefix)
+        import os        
+     
         if not os.path.isdir(tmp_images_dir):
             os.mkdir(tmp_images_dir)
-        # else:
-        #     import shutil
-        #     shutil.rmtree(tmp_images_dir) 
-        local_image_filename = '{}/{}'.format(
-            tmp_images_dir,
-            file_id
-        )
 
         r = requests.get(image_url, allow_redirects=True)
     
         with open(local_image_filename, 'wb') as f:
             f.write(r.content)
         
-        print(local_image_filename)
-        return local_image_filename
-
 
     def put_picture_to_raw_storage(local_image_filename):
-        # Import MinIO library.
-        from minio import Minio
-        from minio.error import (ResponseError, BucketAlreadyOwnedByYou,
-                     BucketAlreadyExists)
-
+        # from minio import Minio
+        # from minio.error import (ResponseError, BucketAlreadyOwnedByYou,
+        #              BucketAlreadyExists)
+        from etlqs.ambassador import put_to_raw_store
         # Initialize minioClient with an endpoint and access/secret keys.
-        mc = Minio('minio:9000',
-                access_key='minio',
-                secret_key='minio123',
-                secure=False)
+        # mc = Minio('minio:9000',
+        #         access_key='minio',
+        #         secret_key='minio123',
+        #         secure=False)
         
+        # for bucket in mc.list_buckets():
+        #     print(bucket)
 
-        for bucket in mc.list_buckets():
-            print(bucket)
 
-        # Make a bucket with the make_bucket API call.
-        try:
-            mc.make_bucket(bucket_raw, location="us-east-1")
-        except BucketAlreadyOwnedByYou as err:
-            pass
-        except BucketAlreadyExists as err:
-            pass
-        except ResponseError as err:
-            raise
-        
         dire = '{}/{}'.format(prefix, directory)
         destination = '{}/{}'.format(dire, local_image_filename.split('/')[-1])
-        try:
-            mc.fput_object(bucket_raw,
-                           destination,
-                           local_image_filename)
-        except ResponseError as err:
-            print(err)
+        put_to_raw_store(bucket_raw,
+                         destination,
+                         local_image_filename)
+
         #kwargs['ti'].xcom_push(key='destination', value=destination)
         
-        image_file = mc.get_object(bucket_raw, destination)
+        #image_file = mc.get_object(bucket_raw, destination)
         #return image_file
-        return local_image_filename
-    
-    return put_picture_to_raw_storage(get_picture_to_local(image_url)), file_id
+
+
+    wget(image_url)
+    put_picture_to_raw_storage(local_image_filename)
+
+    return local_image_filename, file_id
 
 
 def action_encoding64(image_file):

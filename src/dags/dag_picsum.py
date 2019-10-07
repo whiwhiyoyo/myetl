@@ -131,7 +131,7 @@ def action_filter(**context):
     # UGLY rien a faire la
     final_urls_file = '/tmp/{}_final'.format(urls_filename)
     subprocess.call(shlex.split(
-        '/opt/filter.sh {} {}'.format(local_urls_file, final_urls_file)))
+        '/opt/src/filter.sh {} {}'.format(local_urls_file, final_urls_file)))
 
     # DANGER: Variable est global a l ensemble des dag
     Variable.set("final_urls_file", final_urls_file)
